@@ -267,7 +267,7 @@ A built-in copy of these operating instructions.
 
 ## Safety: what the tool will and won't do
 
-- It **never deletes, moves or overwrites** files or folders in your project.
+- It **never deletes, moves or overwrites** your photos or folders. The only file it ever replaces is its own script, and only when you click **Update now** (a backup is kept – see [Updating](#updating)).
 - Your **original photos are only read**, never changed.
 - Once Before (or After) photos are saved for a structure, that set can't be processed or saved again. To redo a set, move the old span folders out of the structure folder yourself first (empty folders are fine).
 - Folders created by older versions of the tool (`Before AH`, `Before BK`, `After AH`, `After BK`) are flagged on Project Status with the new name to use – the tool won't rename them itself.
@@ -280,15 +280,32 @@ The tool checks this repository for a newer version each time it opens (quietly,
 
 ### When an update is available
 
-A window appears with three choices:
+A window appears with four choices:
 
 | Button | What it does |
 |---|---|
-| **Download update** | Downloads the new `ES TLINE PTOOL.ps1` into a **new folder** in your Downloads (e.g. `Downloads\ES TLINE PTOOL v0.2\`) and opens it. Nothing on your PC is overwritten. |
+| **Update now** *(recommended)* | One click (plus a confirmation): downloads the new version, checks it, keeps a backup of your current version, replaces `ES TLINE PTOOL.ps1` in your project folder, restarts the tool and opens this page. |
+| **Download only** | Saves the new `ES TLINE PTOOL.ps1` into a **new folder** in your Downloads (e.g. `Downloads\ES TLINE PTOOL v0.2\`) and opens this page. You then install it by hand (below). |
 | **Open update page** | Opens this section in your browser. |
 | **Later** | Keeps using your current version. You'll be asked again next time. |
 
-### Installing the update
+### Update now – what happens
+
+1. The new version is downloaded to `%LOCALAPPDATA%\ES_TLINE_PTOOL\update\`.
+2. It is checked (correct version number, valid PowerShell, complete file). If anything is wrong, **nothing is changed** and you're told why.
+3. A **backup** of your current version is saved to `%LOCALAPPDATA%\ES_TLINE_PTOOL\update\backup\`.
+4. The new version replaces `ES TLINE PTOOL.ps1` in your project folder, is unblocked, and restarts automatically. This page opens in your browser.
+5. The new version tells you it was updated and where the backup is.
+
+Any photos loaded on the Process Photos tab are cleared when the tool restarts (your original photos are never touched). Finish or save your work first.
+
+**If the tool doesn't restart, or Windows blocks the new file:** close the tool, then right-click `ES TLINE PTOOL.ps1` → **Properties** → tick **Unblock** → **OK**, and run it again (see [Unblocking and running the script](#unblocking-and-running-the-script)). If your IT department blocks scripts with Group Policy, ask IT to allow the new version.
+
+**To go back to the old version:** copy the backup from `%LOCALAPPDATA%\ES_TLINE_PTOOL\update\backup\` into the project folder, rename it to `ES TLINE PTOOL.ps1`, then unblock and run it.
+
+### Installing the update by hand
+
+Use this after **Download only**, or if **Update now** didn't work.
 
 1. **Close** ES TLINE PTOOL.
 2. Copy the new `ES TLINE PTOOL.ps1` into your **project folder**, replacing the old one.
@@ -301,7 +318,7 @@ Your photos, structure folders and settings are not affected by updating.
 
 1. Open the repository: <https://github.com/drewtoma/ES-TLINE-PTOOL>
 2. Click **`ES TLINE PTOOL.ps1`** → **Download raw file** (the download icon).
-3. Follow *Installing the update* above.
+3. Follow *Installing the update by hand* above.
 
 If you have several projects, update the copy in each project folder.
 
@@ -341,6 +358,7 @@ The tool stores a few small files of its own **on your PC, never in the project 
 |---|---|
 | `%LOCALAPPDATA%\ES_TLINE_PTOOL\status_<project>.clixml` | Last status-check results, shown instantly when the tool opens. |
 | `%LOCALAPPDATA%\ES_TLINE_PTOOL\dates_<project>.txt` | Remembered photo dates, so unchanged photos aren't re-read. |
+| `%LOCALAPPDATA%\ES_TLINE_PTOOL\update\` | Downloaded updates, and backups of earlier versions in `backup\`. |
 | `%TEMP%\ES_TLINE_PTOOL_error.txt` | Error log (only written if something goes wrong). |
 
 These can be deleted at any time; the tool simply rebuilds them.
