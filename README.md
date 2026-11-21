@@ -4,6 +4,8 @@
 
 It is a single PowerShell file (`ES TLINE PTOOL.ps1`) with nothing to install.
 
+**Current version: 0.1** – see [Updating](#updating) to get the latest version.
+
 ---
 
 ## Contents
@@ -21,8 +23,9 @@ It is a single PowerShell file (`ES TLINE PTOOL.ps1`) with nothing to install.
    - [Create Structure Folders](#create-structure-folders)
    - [Instructions](#instructions-tab)
 8. [Safety: what the tool will and won't do](#safety-what-the-tool-will-and-wont-do)
-9. [Troubleshooting](#troubleshooting)
-10. [Files the tool keeps on your PC](#files-the-tool-keeps-on-your-pc)
+9. [Updating](#updating)
+10. [Troubleshooting](#troubleshooting)
+11. [Files the tool keeps on your PC](#files-the-tool-keeps-on-your-pc)
 
 ---
 
@@ -271,6 +274,47 @@ A built-in copy of these operating instructions.
 
 ---
 
+## Updating
+
+The tool checks this repository for a newer version each time it opens (quietly, in the background – if there's no internet connection, nothing happens). Your version number is shown in the window title and under the logo, e.g. **v0.1**.
+
+### When an update is available
+
+A window appears with three choices:
+
+| Button | What it does |
+|---|---|
+| **Download update** | Downloads the new `ES TLINE PTOOL.ps1` into a **new folder** in your Downloads (e.g. `Downloads\ES TLINE PTOOL v0.2\`) and opens it. Nothing on your PC is overwritten. |
+| **Open update page** | Opens this section in your browser. |
+| **Later** | Keeps using your current version. You'll be asked again next time. |
+
+### Installing the update
+
+1. **Close** ES TLINE PTOOL.
+2. Copy the new `ES TLINE PTOOL.ps1` into your **project folder**, replacing the old one.
+3. Right-click the new file → **Properties** → tick **Unblock** → **OK** (see [Unblocking and running the script](#unblocking-and-running-the-script)).
+4. Run it as usual (right-click → **Run with PowerShell**).
+
+Your photos, structure folders and settings are not affected by updating.
+
+### Updating manually
+
+1. Open the repository: <https://github.com/drewtoma/ES-TLINE-PTOOL>
+2. Click **`ES TLINE PTOOL.ps1`** → **Download raw file** (the download icon).
+3. Follow *Installing the update* above.
+
+If you have several projects, update the copy in each project folder.
+
+### For maintainers – publishing a new version
+
+1. In the script, change `ToolVersion = '0.1'` (near the top, in the CONFIG section) to the new number, e.g. `'0.2'`.
+2. Update **`version.txt`** in the repository to the same number (just the number, e.g. `0.2`).
+3. Upload the script to the repository as **`ES TLINE PTOOL.ps1`** on the **main** branch.
+
+The tool compares its own `ToolVersion` with `version.txt` (if `version.txt` is missing it reads the version from the script on GitHub instead). Turn the check off by setting `UpdateCheck = $false` in the script's CONFIG section.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
@@ -284,6 +328,7 @@ A built-in copy of these operating instructions.
 | **"Before / After … already saved"** | That set exists. The tool never overwrites it – move the old folder out first if it really needs redoing. |
 | **Red row on Project Status** | Hover over the row to see the exact problems. |
 | **Tool closes with an error** | An error box explains it; details are saved to `%TEMP%\ES_TLINE_PTOOL_error.txt` (paste that into File Explorer's address bar). Send that file to whoever supports the tool. |
+| **"Update available" every time** | Install the update (see [Updating](#updating)); make sure you replaced the copy in the project folder you actually run. |
 | **Logo needs changing** | Put a `logo.png` next to the script to override the built-in logo. |
 
 ---
