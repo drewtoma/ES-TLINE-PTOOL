@@ -22,10 +22,11 @@ It is a single PowerShell file (`ES TLINE PTOOL.ps1`) with nothing to install.
    - [Review and save](#review-and-save)
    - [Create Structure Folders](#create-structure-folders)
    - [Instructions](#instructions-tab)
-8. [Safety: what the tool will and won't do](#safety-what-the-tool-will-and-wont-do)
-9. [Updating](#updating)
-10. [Troubleshooting](#troubleshooting)
-11. [Files the tool keeps on your PC](#files-the-tool-keeps-on-your-pc)
+8. [Customising the logo and photo stamp](#customising-the-logo-and-photo-stamp)
+9. [Safety: what the tool will and won't do](#safety-what-the-tool-will-and-wont-do)
+10. [Updating](#updating)
+11. [Troubleshooting](#troubleshooting)
+12. [Files the tool keeps on your PC](#files-the-tool-keeps-on-your-pc)
 
 ---
 
@@ -261,7 +262,72 @@ Only empty `Str ####` folders are created; the span folders are added when photo
 
 ### Instructions tab
 
-A built-in copy of these operating instructions.
+A built-in copy of these operating instructions. At the bottom it shows which logo is being used and whether a `settings.txt` is active, with a **Create settings.txt** / **Open settings.txt** button (see [Customising](#customising-the-logo-and-photo-stamp)).
+
+---
+
+## Customising the logo and photo stamp
+
+Out of the box the tool stamps photos to the Eversource spec with the built-in M. J. Electric logo – **no setup needed**. Both of the options below are optional and per project (they live in the project folder).
+
+> **Note:** the defaults match the Eversource photo documentation spec. Check with your project lead before changing the look of submitted photos.
+
+### Use your own logo
+
+1. Save your logo as **`logo.png`** in the **project folder** (next to `ES TLINE PTOOL.ps1`).
+2. That's it – it is used on every photo processed from then on, and in the tool's header.
+
+Tips:
+
+- A **PNG with a transparent background** looks best. Crop it tight – any empty border becomes part of the logo's size.
+- Size, position and transparency can be changed in `settings.txt` (below).
+- To use a different file name or location, set `LogoFile` in `settings.txt`.
+- Delete or rename `logo.png` to go back to the built-in logo.
+- The logo file is ignored by the status check (it isn't reported as a loose photo).
+
+### settings.txt
+
+For more control, add a **`settings.txt`** to the project folder.
+
+**Easiest:** open the **Instructions** tab and click **Create settings.txt**. It creates a template (every setting listed but switched off) and opens it in Notepad. Remove the `#` at the start of a line and change the value to use it, then save.
+
+Rules:
+
+- One setting per line: `Name = value`. Names aren't case-sensitive.
+- Lines starting with `#` are comments (switched off). You can also add a comment after a value: `LogoSize = 9   # bigger logo`.
+- Leave a setting out (or blank) to use the default.
+- Changes apply the **next time you click Process Photos** – no restart needed. Photos already saved are **not** changed.
+- If a line can't be used (unknown name, value out of range, font not installed…) it is ignored, the default is used, and the tool tells you which line and why.
+
+| Setting | Default | Allowed values |
+|---|---|---|
+| `LogoFile` | `logo.png` | File name in the project folder (or a full path). Built-in logo if not found. |
+| `LogoPosition` | `TopRight` | `TopRight`, `TopLeft`, `BottomRight`, `BottomLeft`, `None` (no logo) |
+| `LogoSize` | `7` | Logo width as % of the photo's longer side, 1–50 |
+| `LogoMargin` | `1.5` | Gap from the photo edge as % of the shorter side, 0–20 |
+| `LogoOpacity` | `100` | 0–100 (100 = solid) |
+| `BarPosition` | `Bottom` | `Bottom` or `Top` – the bar is added to the photo, it never covers it |
+| `BarHeight` | `5` | % of the photo's shorter side, 1–30 |
+| `BarColor` | `#000000` | Hex colour (`#000000` or `000000`) or a colour name (`Black`, `Navy`…) |
+| `TextColor` | `#FFEF00` | Hex colour or colour name |
+| `Font` | `Segoe UI` | Any font installed on the PC |
+| `FontBold` | `true` | `true` / `false` |
+| `TextAlign` | `Center` | `Center`, `Left`, `Right` |
+| `TextWidth` | `96` | Maximum text width as % of the photo width, 30–100 (text shrinks to fit) |
+| `TextFormat` | `{NAME} // LAT: {LAT} // LONG: {LONG}` | Any text with these placeholders: `{NAME}` file name, `{STRUCTURE}` e.g. `Str 1234`, `{LAT}` / `{LONG}` coordinates, `{DATE}` date taken |
+| `CoordDecimals` | `6` | Decimal places for coordinates, 4–8 (also used in the photo list) |
+| `JpegQuality` | `92` | 50–100 |
+
+**Example `settings.txt`** – a larger, semi-transparent logo in the bottom-left and white text:
+
+```ini
+# ES TLINE PTOOL - settings.txt
+LogoFile = logo.png
+LogoPosition = BottomLeft
+LogoSize = 10
+LogoOpacity = 85
+TextColor = #FFFFFF
+```
 
 ---
 
@@ -346,7 +412,9 @@ The tool compares its own `ToolVersion` with `version.txt` (if `version.txt` is 
 | **Red row on Project Status** | Hover over the row to see the exact problems. |
 | **Tool closes with an error** | An error box explains it; details are saved to `%TEMP%\ES_TLINE_PTOOL_error.txt` (paste that into File Explorer's address bar). Send that file to whoever supports the tool. |
 | **"Update available" every time** | Install the update (see [Updating](#updating)); make sure you replaced the copy in the project folder you actually run. |
-| **Logo needs changing** | Put a `logo.png` next to the script to override the built-in logo. |
+| **Logo needs changing** | Put a `logo.png` in the project folder – see [Customising](#customising-the-logo-and-photo-stamp). |
+| **"Some lines in settings.txt were ignored"** | The message lists each line and why. Fix or remove those lines in `settings.txt` (Instructions tab → **Open settings.txt**). |
+| **Logo / text looks wrong on photos** | Check `settings.txt` in the project folder, or rename it to go back to the standard look. |
 
 ---
 
@@ -362,3 +430,5 @@ The tool stores a few small files of its own **on your PC, never in the project 
 | `%TEMP%\ES_TLINE_PTOOL_error.txt` | Error log (only written if something goes wrong). |
 
 These can be deleted at any time; the tool simply rebuilds them.
+
+Optional files **you** can put in the project folder: `logo.png` (your logo) and `settings.txt` (see [Customising](#customising-the-logo-and-photo-stamp)).
