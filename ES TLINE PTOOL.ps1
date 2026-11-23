@@ -199,6 +199,10 @@
   v3  Instructions tab + $InstructionsText section ; status check moved to a background
       runspace with live-updating rows, Stop button, quick/deep modes and a cached last
       result ; AutoCheckOnStart setting ; saved photos' modified date = date taken.
+  0.2 Release: everything below marked "0.1 (update)" / "0.1 (fix)" - one-click Update now,
+      custom logo.png + settings.txt, and the empty-folder "Scan error" fix.
+  0.1 (fix) Empty structure folders showed "Scan error: You cannot call a method on a null-valued
+      expression" instead of Not Started (v25 project index: "$x = if..else { @() }" gives $null).
   0.1 (update) Custom logo file + settings.txt (see CUSTOMISING).
   0.1 (update) One-click "Update now" added to the update window (see VERSIONING / UPDATES).
   0.1 FIRST VERSIONED RELEASE (= internal build v26). Version shown in the title bar and header;
@@ -546,7 +550,7 @@ trap {
 $Config = [ordered]@{
     ToolName                    = 'ES TLINE PTOOL'
     # ---- Version / updates (bump ToolVersion AND version.txt in the repo for every release) ----
-    ToolVersion                 = '0.1'
+    ToolVersion                 = '0.2'
     UpdateCheck                 = $true    # check GitHub for a newer version when the tool opens
     RepoUrl                     = 'https://github.com/drewtoma/ES-TLINE-PTOOL'
     UpdateHelpUrl               = 'https://github.com/drewtoma/ES-TLINE-PTOOL#updating'
@@ -1938,6 +1942,7 @@ function Format-DateRange($Dates) {
 
 function Test-IgnorableFile($File) {
     # System / OS junk that is never reported
+    if (-not $File) { return $true }
     $n = $File.Name.ToLower()
     if ($Config.IgnoreFileNames -contains $n) { return $true }
     if ($n.StartsWith('~$') -or $n.StartsWith('._')) { return $true }
@@ -2011,7 +2016,7 @@ function Get-StructureStatus($Dir, [bool]$ReadExif = $false, [bool]$Indexed = $f
     # One directory listing per structure (fast on large projects / network drives)
     $di = New-Object System.IO.DirectoryInfo($Dir.FullName)
     $subDirs = @{}                                         # canonical span name -> DirectoryInfo
-    $childDirs = if ($Indexed) { @($PreDirs | Where-Object { $_.Parent.FullName -eq $di.FullName }) } else { @($di.GetDirectories()) }
+    $childDirs = if ($Indexed) { @($PreDirs | Where-Object { $_ -and $_.Parent.FullName -eq $di.FullName }) } else { @($di.GetDirectories()) }
     foreach ($sd in $childDirs) {
         $canon = @($StageSpans | Where-Object { $SpanFolderNames[$_] -eq $sd.Name })   # case-insensitive match
         $old = @($StageSpans | Where-Object { $_ -eq $sd.Name })                       # pre-v14 short names
@@ -2019,7 +2024,7 @@ function Get-StructureStatus($Dir, [bool]$ReadExif = $false, [bool]$Indexed = $f
             $want = $SpanFolderNames[$canon[0]]
             $subDirs[$canon[0]] = $sd
             if ($strict -and $sd.Name -cne $want) { [void]$extra.Add("Folder '$($sd.Name)' should be named exactly '$want'") }
-            $nested = if ($Indexed) { @($PreDirs | Where-Object { $_.Parent.FullName -eq $sd.FullName }) } else { @($sd.GetDirectories()) }
+            $nested = if ($Indexed) { @($PreDirs | Where-Object { $_ -and $_.Parent.FullName -eq $sd.FullName }) } else { @($sd.GetDirectories()) }
             foreach ($nd in $nested) { [void]$extra.Add("Unexpected folder '$($sd.Name)\$($nd.Name)' - span folders should only contain photos") }
         } elseif ($old.Count -gt 0) {
             [void]$extra.Add("Folder '$($sd.Name)' uses the old short name - rename it to '$($SpanFolderNames[$old[0]])'")
@@ -2027,7 +2032,7 @@ function Get-StructureStatus($Dir, [bool]$ReadExif = $false, [bool]$Indexed = $f
             [void]$extra.Add("Unexpected folder '$($sd.Name)' - only '" + (($StageSpans | ForEach-Object { $SpanFolderNames[$_] }) -join "', '") + "' belong in a Str folder")
         }
     }
-    if ($Indexed) { $raw = @($PreFiles) }
+    if ($Indexed) { $raw = @($PreFiles | Where-Object { $_ }) }   # never a $null "file"
     else {
         try { $raw = $di.GetFiles('*', [System.IO.SearchOption]::AllDirectories) }
         catch { $raw = @(Get-ChildItem -LiteralPath $Dir.FullName -File -Recurse -Force -ErrorAction SilentlyContinue) }
@@ -2105,8 +2110,10 @@ try {
         try {
             if ($index) {
                 $k = $d.Name.ToLower()
-                $pf = if ($index.Files.ContainsKey($k)) { $index.Files[$k].ToArray() } else { @() }
-                $pd = if ($index.Dirs.ContainsKey($k)) { $index.Dirs[$k].ToArray() } else { @() }
+                # NOTE: "$x = if (...) {...} else { @() }" leaves $x = $null in PowerShell (an empty
+                # array unrolls to nothing) - so start with @() and only replace it when there are items.
+                $pf = @(); if ($index.Files.ContainsKey($k)) { $pf = $index.Files[$k].ToArray() }
+                $pd = @(); if ($index.Dirs.ContainsKey($k)) { $pd = $index.Dirs[$k].ToArray() }
                 $row = Get-StructureStatus $d $Sync.Deep $true $pf $pd
             } else { $row = Get-StructureStatus $d $Sync.Deep }
         }
