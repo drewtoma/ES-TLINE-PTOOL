@@ -199,6 +199,22 @@
   v3  Instructions tab + $InstructionsText section ; status check moved to a background
       runspace with live-updating rows, Stop button, quick/deep modes and a cached last
       result ; AutoCheckOnStart setting ; saved photos' modified date = date taken.
+  0.3 Release. Fixes the logo crash below, plus a settings.txt review:
+      - Re-reading settings (with or without a settings.txt) no longer disposes the logo the
+        header is showing (Update-HeaderLogo copy) - fixes "Parameter is not valid" / red X.
+      - settings.txt is read with FileShare.ReadWrite (works while open in Notepad/OneDrive);
+        an unreadable file, a bad LogoFile path (invalid characters) or any single bad line
+        can no longer stop the tool - each falls back to the default with a warning.
+      - TextFormat placeholders are case-insensitive ({name} = {NAME}) and inserted literally;
+        a blank TextFormat uses the standard caption; a TextFormat without {LAT}/{LONG} warns
+        that GPS won't be printed.
+      - The settings warning pop-up only re-appears when the problems change (no nagging on
+        every Process Photos click).
+  0.2 (fix) Process Photos showed "Unhandled exception ... Parameter is not valid" and a red X
+      instead of the header logo after settings.txt was re-read (Instructions tab / Process
+      Photos): the cached logo was disposed while the header was still showing it. The header
+      now has its own copy (Update-HeaderLogo) and the cache is never disposed on reload.
+      Progress bar is emptied when the form is cleared or a structure is loaded.
   0.2 Release: everything below marked "0.1 (update)" / "0.1 (fix)" - one-click Update now,
       custom logo.png + settings.txt, and the empty-folder "Scan error" fix.
   0.1 (fix) Empty structure folders showed "Scan error: You cannot call a method on a null-valued
@@ -550,7 +566,7 @@ trap {
 $Config = [ordered]@{
     ToolName                    = 'ES TLINE PTOOL'
     # ---- Version / updates (bump ToolVersion AND version.txt in the repo for every release) ----
-    ToolVersion                 = '0.2'
+    ToolVersion                 = '0.3'
     UpdateCheck                 = $true    # check GitHub for a newer version when the tool opens
     RepoUrl                     = 'https://github.com/drewtoma/ES-TLINE-PTOOL'
     UpdateHelpUrl               = 'https://github.com/drewtoma/ES-TLINE-PTOOL#updating'
@@ -1331,9 +1347,11 @@ function Get-LogoPath {
     # Custom logo: Config.LogoFile (settings.txt "LogoFile"), relative to the project folder.
     $lf = [string]$Config.LogoFile
     if (-not $lf) { return $null }
-    $root = if ($ProjectRoot) { $ProjectRoot } elseif ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-    $p = if ([System.IO.Path]::IsPathRooted($lf)) { $lf } else { Join-Path $root $lf }
-    if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+    try {
+        $root = if ($ProjectRoot) { $ProjectRoot } elseif ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+        $p = if ([System.IO.Path]::IsPathRooted($lf)) { $lf } else { Join-Path $root $lf }
+        if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+    } catch {}                                           # invalid characters etc. -> built-in logo
     return $null
 }
 
@@ -1709,8 +1727,19 @@ function Invoke-ProcessPhoto($Photo, $Slot) {
         }
 
         # 5. Caption (TextFormat: {NAME} {STRUCTURE} {LAT} {LONG} {DATE}), auto-fit to the bar
-        $text = ([string]$Config.TextFormat).Replace('{NAME}', $Slot.Name).Replace('{LAT}', (Format-Coord $Photo.Lat)).Replace('{LONG}', (Format-Coord $Photo.Lon))
-        $text = $text.Replace('{DATE}', $Photo.Taken.ToString('MMM d, yyyy h:mm tt', $Inv)).Replace('{STRUCTURE}', ($Slot.Name -replace ' - .*$', ''))
+        $tokens = [ordered]@{
+            '{NAME}'      = $Slot.Name
+            '{STRUCTURE}' = ($Slot.Name -replace ' - .*$', '')
+            '{LAT}'       = (Format-Coord $Photo.Lat)
+            '{LONG}'      = (Format-Coord $Photo.Lon)
+            '{DATE}'      = $Photo.Taken.ToString('MMM d, yyyy h:mm tt', $Inv)
+        }
+        $text = [string]$Config.TextFormat
+        if (-not $text.Trim()) { $text = '{NAME} // LAT: {LAT} // LONG: {LONG}' }
+        foreach ($tk in $tokens.Keys) {
+            # case-insensitive; the value is inserted literally ("$" etc. are not special)
+            $text = [regex]::Replace($text, [regex]::Escape($tk), ([string]$tokens[$tk]).Replace('$', '$$'), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        }
         $fStyle = if ($Config.FontBold) { [System.Drawing.FontStyle]::Bold } else { [System.Drawing.FontStyle]::Regular }
         $maxW = $w * $Config.TextMaxWidthPct
         $size = [double]$barH * 0.6
@@ -2206,13 +2235,26 @@ function Import-UserSettings {
     # Resets to defaults, then applies settings.txt. Returns warning lines (also kept in
     # $script:SettingsWarnings); $script:SettingsLoaded lists what was applied.
     foreach ($ck in @($SettingDefaultValues.Keys)) { $Config[$ck] = $SettingDefaultValues[$ck] }
-    if ($script:LogoImage) { try { $script:LogoImage.Dispose() } catch {}; $script:LogoImage = $null }
+    # NOTE: never Dispose() the cached logo here - the header PictureBox (or a photo being
+    # processed) may still be drawing it ("Parameter is not valid" / red X). Just drop the cache.
+    $script:LogoImage = $null
     $warn = New-Object System.Collections.ArrayList
     $loaded = New-Object System.Collections.ArrayList
+    $lines = @()
     if (Test-Path -LiteralPath $SettingsFile -PathType Leaf) {
+        try {
+            # FileShare.ReadWrite: still readable while Notepad / OneDrive has the file open
+            $fs = New-Object System.IO.FileStream($SettingsFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+            $sr = New-Object System.IO.StreamReader($fs, $true)
+            $lines = $sr.ReadToEnd() -split "`r?`n"
+            $sr.Dispose(); $fs.Dispose()
+        } catch { [void]$warn.Add("settings.txt could not be read ($($_.Exception.Message)) - using the standard look") }
+    }
+    if ($lines.Count) {
         $n = 0
-        foreach ($raw in [System.IO.File]::ReadAllLines($SettingsFile)) {
+        foreach ($raw in $lines) {
             $n++
+            try {
             $line = $raw.Trim()
             if (-not $line -or $line.StartsWith('#') -or $line.StartsWith(';')) { continue }
             $eq = $line.IndexOf('=')
@@ -2249,7 +2291,12 @@ function Import-UserSettings {
                 else { $ok = $false; [void]$warn.Add("line ${n}: $name must be true or false") }
             }
             if ($ok) { $Config[$ck] = $v; [void]$loaded.Add("$($key[0]) = $val") }
+            }
+            catch { [void]$warn.Add("line ${n}: could not be read ($($_.Exception.Message))") }
         }
+    }
+    if ([string]$Config.TextFormat -notmatch '(?i)\{LAT\}' -or [string]$Config.TextFormat -notmatch '(?i)\{LONG\}') {
+        [void]$warn.Add("TextFormat has no {LAT} / {LONG} - the GPS coordinates will NOT be printed on the photos")
     }
     if ($Config.LogoFile -and $Config.LogoFile -ne 'logo.png' -and -not (Get-LogoPath)) {
         [void]$warn.Add("LogoFile '$($Config.LogoFile)' was not found in the project folder - using the built-in logo")
@@ -2258,8 +2305,12 @@ function Import-UserSettings {
     return , $script:SettingsWarnings
 }
 
-function Show-SettingsWarnings {
-    if (@($script:SettingsWarnings).Count -eq 0) { return }
+$script:LastWarnShown = ''
+function Show-SettingsWarnings([switch]$Always) {
+    if (@($script:SettingsWarnings).Count -eq 0) { $script:LastWarnShown = ''; return }
+    $sig = ($script:SettingsWarnings -join '|')
+    if (-not $Always -and $sig -eq $script:LastWarnShown) { return }   # same problems already shown
+    $script:LastWarnShown = $sig
     Show-Msg ("Some lines in settings.txt were ignored (defaults used instead):`r`n`r`n  " + ($script:SettingsWarnings -join "`r`n  ") +
         "`r`n`r`nFile: $SettingsFile") 'Warning' | Out-Null
 }
@@ -2299,7 +2350,11 @@ $SettingsTemplate = @'
 # JpegQuality = 92             # 50-100
 '@
 
-[void](Import-UserSettings)
+try { [void](Import-UserSettings) }
+catch {
+    foreach ($ck in @($SettingDefaultValues.Keys)) { $Config[$ck] = $SettingDefaultValues[$ck] }
+    $script:SettingsWarnings = @("settings.txt could not be applied ($($_.Exception.Message)) - using the standard look")
+}
 #endregion
 
 #region ------------------------------------- MAIN FORM ----------------------------------------
@@ -2341,7 +2396,15 @@ function Add-Label([string]$Text, [int]$X, [int]$Y, [int]$W = 300, [int]$H = 20,
 $pbLogo = New-Object System.Windows.Forms.PictureBox
 $pbLogo.Location = New-Object System.Drawing.Point(12, 10); $pbLogo.Size = New-Object System.Drawing.Size(70, 62)
 $pbLogo.SizeMode = 'Zoom'
-try { $pbLogo.Image = Get-Logo } catch {}
+function Update-HeaderLogo {
+    # The header gets its own copy of the logo, so nothing else can dispose what it is showing.
+    try {
+        $old = $pbLogo.Image
+        $pbLogo.Image = New-Object System.Drawing.Bitmap((Get-Logo))
+        if ($old) { $old.Dispose() }
+    } catch {}
+}
+Update-HeaderLogo
 $pageProc.Controls.Add($pbLogo)
 $hdr = Add-Label 'ES TLINE PTOOL' 90 14 230 26 $true
 $hdr.Font = New-Object System.Drawing.Font('Segoe UI', 14, [System.Drawing.FontStyle]::Bold)
@@ -2780,7 +2843,7 @@ $btnSettings.Add_Click({
         try { Start-Process notepad.exe -ArgumentList "`"$SettingsFile`"" } catch {}
         Update-SettingsInfo
     })
-$tabs.Add_SelectedIndexChanged({ if ($tabs.SelectedTab -eq $pageHelp) { try { [void](Import-UserSettings); [void](Get-Logo); Update-SettingsInfo } catch {} } })
+$tabs.Add_SelectedIndexChanged({ if ($tabs.SelectedTab -eq $pageHelp) { try { [void](Import-UserSettings); [void](Get-Logo); Update-HeaderLogo; Update-SettingsInfo } catch {} } })
 #endregion
 
 #region ------------------------------------- UI LOGIC -----------------------------------------
@@ -3178,7 +3241,7 @@ function Set-UiEnabled([bool]$On) {
 }
 
 function Reset-Form {
-    Clear-PhotoThumbs $script:Photos; $script:Photos.Clear(); $script:ManualOrder = $false; $txtStr.Text = ''
+    Clear-PhotoThumbs $script:Photos; $script:Photos.Clear(); $script:ManualOrder = $false; $txtStr.Text = ''; $progress.Value = 0
     $rbExisting.Checked = $false; $rbReplace.Checked = $false
     $chkCross.Checked = $true; $chkX.Checked = $true; $nudAh.Value = 0; $nudBk.Value = 0
     $script:BracingFor = $null; $chkCross.Text = $CrossText; $chkX.Text = $XText
@@ -3355,6 +3418,7 @@ function Open-SelectedStructure {
         Clear-PhotoThumbs $script:Photos; $script:Photos.Clear()
     }
     $txtStr.Text = [string]$r.Num
+    $progress.Value = 0
     Update-StageLock
     if ($r.Status -eq 'Not Started') { $rbExisting.Checked = $true }
     elseif ($r.Status -eq 'Partially Complete') { $rbReplace.Checked = $true }
@@ -3494,7 +3558,7 @@ $form.Add_KeyDown({ param($s, $e) if ($e.KeyCode -eq 'F5' -and $tabs.SelectedTab
 $lvSt.Add_DoubleClick({ Open-SelectedStructure })
 
 $btnProcess.Add_Click({
-        try { [void](Import-UserSettings); Show-SettingsWarnings } catch {}   # pick up settings.txt edits
+        try { [void](Import-UserSettings); Update-HeaderLogo; Show-SettingsWarnings } catch {}   # pick up settings.txt edits
         $errs = Test-Inputs
         if ($errs.Count -gt 0) {
             Show-Msg ("Please fix the following:`r`n`r`n- " + ($errs -join "`r`n`r`n- ")) 'Warning' | Out-Null

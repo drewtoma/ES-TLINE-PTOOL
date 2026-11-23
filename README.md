@@ -4,7 +4,7 @@
 
 It is a single PowerShell file (`ES TLINE PTOOL.ps1`) with nothing to install.
 
-**Current version: 0.2** – see [Updating](#updating) to get the latest version.
+**Current version: 0.3** – see [Updating](#updating) to get the latest version.
 
 ---
 
@@ -297,7 +297,9 @@ Rules:
 - Lines starting with `#` are comments (switched off). You can also add a comment after a value: `LogoSize = 9   # bigger logo`.
 - Leave a setting out (or blank) to use the default.
 - Changes apply the **next time you click Process Photos** – no restart needed. Photos already saved are **not** changed.
-- If a line can't be used (unknown name, value out of range, font not installed…) it is ignored, the default is used, and the tool tells you which line and why.
+- If a line can't be used (unknown name, value out of range, font not installed…) it is ignored, the default is used, and the tool tells you which line and why. The message only appears again if the problems change.
+- You can keep `settings.txt` open in Notepad while you work – save it, then click **Process Photos**.
+- Without a `settings.txt` (the normal case) the standard Eversource look and the built-in logo are used.
 
 | Setting | Default | Allowed values |
 |---|---|---|
@@ -314,7 +316,7 @@ Rules:
 | `FontBold` | `true` | `true` / `false` |
 | `TextAlign` | `Center` | `Center`, `Left`, `Right` |
 | `TextWidth` | `96` | Maximum text width as % of the photo width, 30–100 (text shrinks to fit) |
-| `TextFormat` | `{NAME} // LAT: {LAT} // LONG: {LONG}` | Any text with these placeholders: `{NAME}` file name, `{STRUCTURE}` e.g. `Str 1234`, `{LAT}` / `{LONG}` coordinates, `{DATE}` date taken |
+| `TextFormat` | `{NAME} // LAT: {LAT} // LONG: {LONG}` | Any text with these placeholders (not case-sensitive): `{NAME}` file name, `{STRUCTURE}` e.g. `Str 1234`, `{LAT}` / `{LONG}` coordinates, `{DATE}` date taken. Keep `{LAT}` and `{LONG}` – Eversource requires GPS on every photo (you're warned if they're missing). |
 | `CoordDecimals` | `6` | Decimal places for coordinates, 4–8 (also used in the photo list) |
 | `JpegQuality` | `92` | 50–100 |
 
@@ -342,7 +344,7 @@ TextColor = #FFFFFF
 
 ## Updating
 
-The tool checks this repository for a newer version each time it opens (quietly, in the background – if there's no internet connection, nothing happens). Your version number is shown in the window title and under the logo, e.g. **v0.2**.
+The tool checks this repository for a newer version each time it opens (quietly, in the background – if there's no internet connection, nothing happens). Your version number is shown in the window title and under the logo, e.g. **v0.3**.
 
 ### When an update is available
 
@@ -351,7 +353,7 @@ A window appears with four choices:
 | Button | What it does |
 |---|---|
 | **Update now** *(recommended)* | One click (plus a confirmation): downloads the new version, checks it, keeps a backup of your current version, replaces `ES TLINE PTOOL.ps1` in your project folder, restarts the tool and opens this page. |
-| **Download only** | Saves the new `ES TLINE PTOOL.ps1` into a **new folder** in your Downloads (e.g. `Downloads\ES TLINE PTOOL v0.3\`) and opens this page. You then install it by hand (below). |
+| **Download only** | Saves the new `ES TLINE PTOOL.ps1` into a **new folder** in your Downloads (e.g. `Downloads\ES TLINE PTOOL v0.4\`) and opens this page. You then install it by hand (below). |
 | **Open update page** | Opens this section in your browser. |
 | **Later** | Keeps using your current version. You'll be asked again next time. |
 
@@ -390,8 +392,8 @@ If you have several projects, update the copy in each project folder.
 
 ### For maintainers – publishing a new version
 
-1. In the script, change `ToolVersion = '0.2'` (near the top, in the CONFIG section) to the new number, e.g. `'0.3'`.
-2. Update **`version.txt`** in the repository to the same number (just the number, e.g. `0.3`).
+1. In the script, change `ToolVersion = '0.3'` (near the top, in the CONFIG section) to the new number, e.g. `'0.4'`.
+2. Update **`version.txt`** in the repository to the same number (just the number, e.g. `0.4`).
 3. Upload the script to the repository as **`ES TLINE PTOOL.ps1`** on the **main** branch.
 
 The tool compares its own `ToolVersion` with `version.txt` (if `version.txt` is missing it reads the version from the script on GitHub instead). Turn the check off by setting `UpdateCheck = $false` in the script's CONFIG section.
